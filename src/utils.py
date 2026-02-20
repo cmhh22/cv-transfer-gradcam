@@ -1,5 +1,5 @@
 """
-Utility functions for data loading, preprocessing, and visualization
+Utility functions for data loading, preprocessing, and visualization.
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,276 +23,278 @@ try:
 except ImportError:
     tf = None
 
-def prepare_pytorch_dataset(data_dir: str, batch_size: int = 32, 
-                            img_size: int = 224, num_workers: int = 4) -> Tuple[DataLoader, DataLoader]:
+
+# ---------------------------------------------------------------------------
+# Data loading
+# ---------------------------------------------------------------------------
+
+def prepare_pytorch_dataset(
+    data_dir: str,
+    batch_size: int = 32,
+    img_size: int = 224,
+    num_workers: int = 4,
+) -> Tuple:
     """
-    Prepare PyTorch data loaders
-    
+    Prepare PyTorch data loaders.
+
     Args:
-        data_dir: Path to data directory (should contain train/ and val/ subdirs)
-        batch_size: Batch size
-        img_size: Image size
-        num_workers: Number of workers for data loading
-        
+        data_dir: Path containing train/ and val/ subdirectories.
+        batch_size: Batch size.
+        img_size: Image size for resizing.
+        num_workers: Number of data-loading workers.
+
     Returns:
-        Tuple of (train_loader, val_loader)
+        Tuple of (train_loader, val_loader).
     """
-    # Data augmentation for training
+    if transforms is None:
+        raise ImportError("PyTorch / torchvision is required: pip install torch torchvision")
+
     train_transform = transforms.Compose([
         transforms.RandomResizedCrop(img_size),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(15),
         transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225]),
     ])
-    
-    # No augmentation for validation
+
     val_transform = transforms.Compose([
         transforms.Resize(256),
         transforms.CenterCrop(img_size),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225]),
     ])
-    
-    # Load datasets
-    train_dataset = datasets.ImageFolder(f"{data_dir}/train", transform=train_transform)
-    val_dataset = datasets.ImageFolder(f"{data_dir}/val", transform=val_transform)
-    
-    # Create data loaders
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True
-    )
-    
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=True
-    )
-    
+
+    train_dataset = datasets.ImageFolder(f"{data_dir}/train",
+                                         transform=train_transform)
+    val_dataset = datasets.ImageFolder(f"{data_dir}/val",
+                                       transform=val_transform)
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size,
+                              shuffle=True, num_workers=num_workers,
+                              pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size,
+                            shuffle=False, num_workers=num_workers,
+                            pin_memory=True)
+
     return train_loader, val_loader
 
-def prepare_tensorflow_dataset(data_dir: str, batch_size: int = 32, 
-                               img_size: int = 224) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
+
+def prepare_tensorflow_dataset(
+    data_dir: str,
+    batch_size: int = 32,
+    img_size: int = 224,
+) -> Tuple:
     """
-    Prepare TensorFlow datasets
-    
+    Prepare TensorFlow datasets using ``image_dataset_from_directory``.
+
     Args:
-        data_dir: Path to data directory (should contain train/ and val/ subdirs)
-        batch_size: Batch size
-        img_size: Image size
-        
+        data_dir: Path containing train/ and val/ subdirectories.
+        batch_size: Batch size.
+        img_size: Image size for resizing.
+
     Returns:
-        Tuple of (train_ds, val_ds)
+        Tuple of (train_ds, val_ds).
     """
-    # Data augmentation for training
-    train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
-        rescale=1./255,
-        rotation_range=15,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        shear_range=0.2,
-        zoom_range=0.2,
-        horizontal_flip=True,
-        fill_mode='nearest'
-    )
-    
-    # No augmentation for validation
-    val_datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1./255)
-    
-    # Load datasets
-    train_ds = train_datagen.flow_from_directory(
+    if tf is None:
+        raise ImportError("TensorFlow is required: pip install tensorflow")
+
+    train_ds = tf.keras.utils.image_dataset_from_directory(
         f"{data_dir}/train",
-        target_size=(img_size, img_size),
+        image_size=(img_size, img_size),
         batch_size=batch_size,
-        class_mode='categorical'
+        label_mode="categorical",
+        shuffle=True,
     )
-    
-    val_ds = val_datagen.flow_from_directory(
+
+    val_ds = tf.keras.utils.image_dataset_from_directory(
         f"{data_dir}/val",
-        target_size=(img_size, img_size),
+        image_size=(img_size, img_size),
         batch_size=batch_size,
-        class_mode='categorical'
+        label_mode="categorical",
+        shuffle=False,
     )
-    
+
+    # Normalise pixel values to [0, 1]
+    norm = tf.keras.layers.Rescaling(1.0 / 255)
+    train_ds = train_ds.map(lambda x, y: (norm(x), y))
+    val_ds = val_ds.map(lambda x, y: (norm(x), y))
+
     return train_ds, val_ds
 
+
+# ---------------------------------------------------------------------------
+# ImageNet labels (delegates to the cached version in src modules)
+# ---------------------------------------------------------------------------
+
 def download_imagenet_labels() -> list:
-    """Download ImageNet class labels"""
+    """Download ImageNet class labels (with local file caching)."""
+    try:
+        from src.pytorch_transfer import get_imagenet_labels
+        return get_imagenet_labels()
+    except ImportError:
+        pass
+    try:
+        from src.tensorflow_transfer import get_imagenet_labels
+        return get_imagenet_labels()
+    except ImportError:
+        pass
+
+    # Standalone fallback
     import urllib.request
     import json
-    
     try:
-        url = "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json"
-        with urllib.request.urlopen(url) as response:
-            labels = json.loads(response.read().decode())
-        return labels
-    except Exception as e:
-        print(f"Error downloading labels: {e}")
+        url = ("https://raw.githubusercontent.com/anishathalye/"
+               "imagenet-simple-labels/master/imagenet-simple-labels.json")
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            return json.loads(resp.read().decode())
+    except Exception:
         return [f"class_{i}" for i in range(1000)]
+
+
+# ---------------------------------------------------------------------------
+# Visualization
+# ---------------------------------------------------------------------------
 
 def plot_training_history(history, save_path: Optional[str] = None):
     """
-    Plot training history
-    
+    Plot training history (accuracy + loss curves).
+
     Args:
-        history: Training history from model.fit()
-        save_path: Path to save the plot
+        history: Training history from model.fit() or a dict.
+        save_path: Path to save the plot (shows interactively if None).
     """
+    h = history.history if hasattr(history, "history") else history
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
-    
-    # Plot accuracy
-    ax1.plot(history.history['accuracy'], label='Train Accuracy')
-    ax1.plot(history.history['val_accuracy'], label='Val Accuracy')
-    ax1.set_xlabel('Epoch')
-    ax1.set_ylabel('Accuracy')
+
+    if "accuracy" in h:
+        ax1.plot(h["accuracy"], label="Train Accuracy")
+    if "val_accuracy" in h:
+        ax1.plot(h["val_accuracy"], label="Val Accuracy")
+    ax1.set_xlabel("Epoch")
+    ax1.set_ylabel("Accuracy")
     ax1.legend()
     ax1.grid(True)
-    ax1.set_title('Training and Validation Accuracy')
-    
-    # Plot loss
-    ax2.plot(history.history['loss'], label='Train Loss')
-    ax2.plot(history.history['val_loss'], label='Val Loss')
-    ax2.set_xlabel('Epoch')
-    ax2.set_ylabel('Loss')
+    ax1.set_title("Training and Validation Accuracy")
+
+    if "loss" in h:
+        ax2.plot(h["loss"], label="Train Loss")
+    if "val_loss" in h:
+        ax2.plot(h["val_loss"], label="Val Loss")
+    ax2.set_xlabel("Epoch")
+    ax2.set_ylabel("Loss")
     ax2.legend()
     ax2.grid(True)
-    ax2.set_title('Training and Validation Loss')
-    
+    ax2.set_title("Training and Validation Loss")
+
     plt.tight_layout()
-    
+
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
         print(f"Plot saved to {save_path}")
     else:
         plt.show()
 
-def visualize_predictions(model, images: list, labels: list, class_names: list, 
-                         framework: str = 'pytorch', save_path: Optional[str] = None):
+
+def visualize_predictions(
+    model,
+    images: list,
+    labels: list,
+    class_names: list,
+    framework: str = "pytorch",
+    save_path: Optional[str] = None,
+):
     """
-    Visualize model predictions on a batch of images
-    
+    Visualize model predictions on a batch of images.
+
     Args:
-        model: Trained model
-        images: List of images
-        labels: True labels
-        class_names: List of class names
-        framework: 'pytorch' or 'tensorflow'
-        save_path: Path to save the visualization
+        model: A ``PyTorchTransferModel`` or ``TensorFlowTransferModel`` instance.
+        images: List of PIL images.
+        labels: True label indices.
+        class_names: List of class names.
+        framework: 'pytorch' or 'tensorflow' (unused — model.predict() handles it).
+        save_path: Path to save the visualisation.
     """
     num_images = len(images)
-    cols = 4
-    rows = (num_images + cols - 1) // cols
-    
-    fig, axes = plt.subplots(rows, cols, figsize=(15, 4 * rows))
-    axes = axes.flatten() if num_images > 1 else [axes]
-    
+    cols = min(4, num_images)
+    rows = max(1, (num_images + cols - 1) // cols)
+
+    fig, axes = plt.subplots(rows, cols, figsize=(4 * cols, 4 * rows))
+    axes = np.array(axes).flatten() if num_images > 1 else [axes]
+
     for idx, (img, label) in enumerate(zip(images, labels)):
-        if framework == 'pytorch':
-            pred, conf = model.predict(img)
-        else:
-            pred, conf = model.predict(img)
-        
-        # Display image
+        results = model.predict(img, top_k=1)
+        pred_name, conf = results[0]
+
         axes[idx].imshow(img)
-        axes[idx].axis('off')
-        
-        # Title with prediction and true label
-        true_label = class_names[label] if label < len(class_names) else f"class_{label}"
-        title = f"True: {true_label}\nPred: {pred}\nConf: {conf:.2%}"
-        color = 'green' if pred == true_label else 'red'
-        axes[idx].set_title(title, color=color, fontsize=10)
-    
-    # Hide extra subplots
+        axes[idx].axis("off")
+
+        true_label = (class_names[label]
+                      if label < len(class_names) else f"class_{label}")
+        title = f"True: {true_label}\nPred: {pred_name}\nConf: {conf:.2%}"
+        colour = "green" if pred_name == true_label else "red"
+        axes[idx].set_title(title, color=colour, fontsize=10)
+
     for idx in range(num_images, len(axes)):
-        axes[idx].axis('off')
-    
+        axes[idx].axis("off")
+
     plt.tight_layout()
-    
+
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Visualization saved to {save_path}")
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        print(f"Visualisation saved to {save_path}")
     else:
         plt.show()
 
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
 def load_and_preprocess_image(image_path: str, img_size: int = 224) -> Image.Image:
-    """
-    Load and preprocess a single image
-    
-    Args:
-        image_path: Path to image
-        img_size: Target size
-        
-    Returns:
-        PIL Image
-    """
-    image = Image.open(image_path).convert('RGB')
-    image = image.resize((img_size, img_size))
-    return image
+    """Load an image and resize to (img_size, img_size)."""
+    return Image.open(image_path).convert("RGB").resize((img_size, img_size))
 
-def get_device() -> torch.device:
-    """Get the best available device (CUDA, MPS, or CPU)"""
+
+def get_device():
+    """Get the best available PyTorch device (CUDA -> MPS -> CPU)."""
+    if torch is None:
+        raise ImportError("PyTorch is required: pip install torch")
     if torch.cuda.is_available():
-        return torch.device('cuda')
-    elif torch.backends.mps.is_available():
-        return torch.device('mps')
-    else:
-        return torch.device('cpu')
+        return torch.device("cuda")
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
 
-def count_parameters(model, framework: str = 'pytorch') -> int:
-    """
-    Count the number of trainable parameters
-    
-    Args:
-        model: Model
-        framework: 'pytorch' or 'tensorflow'
-        
-    Returns:
-        Number of trainable parameters
-    """
-    if framework == 'pytorch':
+
+def count_parameters(model, framework: str = "pytorch") -> int:
+    """Count trainable parameters in a model."""
+    if framework == "pytorch":
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
-    else:
-        return model.count_params()
+    return model.count_params()
 
-def create_sample_images(output_dir: str = 'examples', num_images: int = 5):
-    """
-    Create sample placeholder images for testing
-    
-    Args:
-        output_dir: Directory to save images
-        num_images: Number of sample images to create
-    """
+
+def create_sample_images(output_dir: str = "examples", num_images: int = 5):
+    """Create simple placeholder images for testing."""
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    
-    categories = ['cat', 'dog', 'car', 'bird', 'flower']
-    
-    for i, category in enumerate(categories[:num_images]):
-        # Create a random image
-        img_array = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
-        img = Image.fromarray(img_array)
-        
-        # Save
-        img.save(f"{output_dir}/{category}.jpg")
-    
-    print(f"Created {num_images} sample images in {output_dir}/")
+    categories = ["cat", "dog", "car", "bird", "flower"]
+    for category in categories[:num_images]:
+        arr = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+        Image.fromarray(arr).save(f"{output_dir}/{category}.jpg")
+    print(f"Created {min(num_images, len(categories))} sample images in {output_dir}/")
+
 
 def setup_directories():
-    """Create necessary project directories"""
-    directories = ['models', 'data/train', 'data/val', 'examples', 'notebooks', 'docs']
-    
-    for directory in directories:
-        Path(directory).mkdir(parents=True, exist_ok=True)
-    
+    """Create necessary project directories."""
+    for d in ["models", "data/train", "data/val", "examples", "notebooks", "docs"]:
+        Path(d).mkdir(parents=True, exist_ok=True)
     print("Project directories created successfully!")
 
+
 if __name__ == "__main__":
-    # Setup directories and create sample images
     setup_directories()
     create_sample_images()

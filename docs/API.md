@@ -16,26 +16,33 @@ model = PyTorchTransferModel(
 
 ### Methods
 
-#### `predict(image, top_k=1)`
+#### `predict(image, top_k=5)`
 
 Make prediction on a single image.
 
 **Parameters:**
 - `image` (PIL.Image): Input image
-- `top_k` (int): Number of top predictions to return
+- `top_k` (int): Number of top predictions to return (default: 5)
 
 **Returns:**
-- If `top_k=1`: Tuple of (prediction_name, confidence)
-- If `top_k>1`: List of tuples [(name1, conf1), (name2, conf2), ...]
+- List of `(class_name, confidence)` tuples sorted by confidence descending.
 
 **Example:**
 ```python
 from PIL import Image
 
 image = Image.open('cat.jpg')
-prediction, confidence = model.predict(image)
-print(f"{prediction}: {confidence:.2%}")
+results = model.predict(image, top_k=5)
+for name, conf in results:
+    print(f"{name}: {conf:.2%}")
 ```
+
+#### `get_target_layer_name()`
+
+Return the recommended Grad-CAM target layer name for this architecture.
+
+**Returns:**
+- `str` or `None`
 
 #### `freeze_layers(freeze_all=True)`
 
@@ -99,7 +106,7 @@ model = TensorFlowTransferModel(
 
 ### Methods
 
-#### `predict(image, top_k=1)`
+#### `predict(image, top_k=5)`
 
 Make prediction on a single image.
 
@@ -108,15 +115,24 @@ Make prediction on a single image.
 - `top_k` (int): Number of top predictions
 
 **Returns:**
-- Same as PyTorchTransferModel
+- List of `(class_name, confidence)` tuples sorted by confidence descending.
 
 **Example:**
 ```python
 from PIL import Image
 
 image = Image.open('dog.jpg')
-prediction, confidence = model.predict(image)
+results = model.predict(image, top_k=5)
+for name, conf in results:
+    print(f"{name}: {conf:.2%}")
 ```
+
+#### `get_target_layer_name()`
+
+Return recommended Grad-CAM target layer for this architecture.
+
+**Returns:**
+- `str` or `None`
 
 #### `freeze_layers(freeze_base=True)`
 
@@ -273,20 +289,21 @@ from src.gradcam import GradCAM
 
 # Load model
 model = PyTorchTransferModel(model_name='resnet50')
-model.load_pretrained()
 
 # Load image
 image = Image.open('example.jpg')
 
 # Make prediction
-prediction, confidence = model.predict(image)
-print(f"Prediction: {prediction} ({confidence:.2%})")
+results = model.predict(image, top_k=5)
+print(f"Top prediction: {results[0][0]} ({results[0][1]:.2%})")
 
 # Generate Grad-CAM
-gradcam = GradCAM(model.model, framework='pytorch')
+target_layer = model.get_target_layer_name()
+gradcam = GradCAM(model.model, framework='pytorch', target_layer=target_layer)
 heatmap = gradcam.generate_heatmap(image)
 overlay = gradcam.overlay_heatmap(image, heatmap)
 overlay.save('gradcam_result.jpg')
+gradcam.remove_hooks()
 ```
 
 ---

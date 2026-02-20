@@ -241,26 +241,7 @@ Recommended augmentations:
 
 See `notebooks/` directory for complete training examples:
 - `01_pytorch_tutorial.ipynb`
-- `02_tensorflow_tutorial.ipynb`
 
-## Command Line Training
+## Additional Resources
 
-```bash
-# PyTorch
-python src/train_pytorch.py \
-    --model resnet50 \
-    --data data/ \
-    --epochs 20 \
-    --batch-size 32 \
-    --lr 0.001 \
-    --output models/model.pth
-
-# TensorFlow
-python src/train_tensorflow.py \
-    --model ResNet50 \
-    --data data/ \
-    --epochs 20 \
-    --batch-size 32 \
-    --lr 0.001 \
-    --output models/model.h5
-```
+For the full API reference, see `docs/API.md`.
