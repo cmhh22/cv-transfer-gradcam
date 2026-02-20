@@ -1,25 +1,15 @@
-# Core Dependencies
+# Core ML Frameworks (need Python 3.9-3.12)
 torch>=2.0.0
 torchvision>=0.15.0
 tensorflow>=2.13.0
+
+# Image processing
 numpy>=1.24.0
 pillow>=10.0.0
-opencv-python>=4.8.0
-matplotlib>=3.7.0
-scikit-learn>=1.3.0
+opencv-python-headless>=4.8.0
 
-# Gradio for Web Interface
+# Web interface
 gradio>=4.0.0
 
-# Utilities
-tqdm>=4.65.0
-requests>=2.31.0
-
-# Optional: For advanced visualizations
-seaborn>=0.12.0
-plotly>=5.14.0
-
-# Development
-pytest>=7.4.0
-black>=23.7.0
-flake8>=6.0.0
+# Visualization (optional, used in notebooks/training)
+matplotlib>=3.7.0
