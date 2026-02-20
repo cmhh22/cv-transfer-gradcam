@@ -150,4 +150,7 @@ with gr.Blocks(title="CV Transfer Learning + Grad-CAM", theme=gr.themes.Soft()) 
     )
 
 if __name__ == "__main__":
-    demo.launch(share=False)
+    # Auto-detect Colab environment and enable share
+    import os
+    in_colab = 'COLAB_GPU' in os.environ or 'COLAB_TPU_ADDR' in os.environ
+    demo.launch(share=in_colab)
