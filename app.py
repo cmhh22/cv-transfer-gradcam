@@ -93,22 +93,30 @@ def predict_with_gradcam(image, framework, model_name):
 CSS = """
 /* ── Root variables ── */
 :root {
-    --accent: #6366f1;
-    --accent-hover: #4f46e5;
-    --accent-soft: rgba(99,102,241,.08);
-    --surface: #ffffff;
-    --surface-dim: #f8fafc;
-    --border: #e2e8f0;
-    --text: #1e293b;
-    --text-muted: #64748b;
+    --accent: #f97316;
+    --accent-hover: #ea580c;
+    --accent-soft: rgba(249,115,22,.08);
+    --surface: #0f0f0f;
+    --surface-2: #1a1a1a;
+    --surface-3: #242424;
+    --border: #2e2e2e;
+    --text: #f1f1f1;
+    --text-muted: #a1a1a1;
     --radius: 14px;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,.06);
-    --shadow-md: 0 4px 16px rgba(0,0,0,.08);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.4);
 }
 
 /* ── Hide Gradio footer & scrollbar flicker ── */
 footer { display: none !important; }
-.gradio-container { max-width: 1100px !important; margin: auto; }
+.gradio-container {
+    max-width: 1100px !important;
+    margin: auto;
+    background: var(--surface) !important;
+}
+.dark, body, .main, .app {
+    background: var(--surface) !important;
+}
 
 /* ── Header ── */
 .app-header {
@@ -118,7 +126,7 @@ footer { display: none !important; }
 .app-header h1 {
     font-size: 1.75rem;
     font-weight: 700;
-    color: var(--text);
+    color: var(--accent);
     margin: 0 0 4px;
     letter-spacing: -.02em;
 }
@@ -144,14 +152,14 @@ footer { display: none !important; }
     border-radius: 20px;
     letter-spacing: .01em;
 }
-.badge.pytorch  { background: #ee4c2c18; color: #ee4c2c; }
-.badge.tf       { background: #ff6f0018; color: #ff6f00; }
-.badge.gradio   { background: #f9731618; color: #f97316; }
-.badge.imagenet { background: #6366f118; color: #6366f1; }
+.badge.pytorch  { background: #ee4c2c22; color: #ff6b5b; border: 1px solid #ee4c2c44; }
+.badge.tf       { background: #ff6f0022; color: #ffaa60; border: 1px solid #ff6f0044; }
+.badge.gradio   { background: #f9731622; color: #f97316; border: 1px solid #f9731644; }
+.badge.imagenet { background: #f9731622; color: #fbbf24; border: 1px solid #fbbf2444; }
 
 /* ── Cards ── */
 .card {
-    background: var(--surface);
+    background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 20px;
@@ -173,7 +181,7 @@ footer { display: none !important; }
     border: none !important;
     cursor: pointer;
     transition: background .2s, box-shadow .2s, transform .1s;
-    box-shadow: 0 2px 8px rgba(99,102,241,.25);
+    box-shadow: 0 2px 8px rgba(249,115,22,.3);
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -185,12 +193,12 @@ footer { display: none !important; }
 }
 #predict-btn:hover {
     background: var(--accent-hover) !important;
-    box-shadow: 0 4px 14px rgba(99,102,241,.35);
+    box-shadow: 0 4px 14px rgba(249,115,22,.45);
     transform: translateY(-1px);
 }
 #predict-btn:active {
     transform: translateY(0);
-    box-shadow: 0 1px 4px rgba(99,102,241,.2);
+    box-shadow: 0 1px 4px rgba(249,115,22,.2);
 }
 
 /* ── Kill extra spinners — show only ONE loader ── */
@@ -209,7 +217,7 @@ footer { display: none !important; }
     display: flex !important;
     position: absolute;
     inset: 0;
-    background: rgba(255,255,255,.7);
+    background: rgba(15,15,15,.75);
     backdrop-filter: blur(2px);
     z-index: 5;
     border-radius: var(--radius);
@@ -242,15 +250,16 @@ footer { display: none !important; }
 #info-box {
     min-height: 48px;
     padding: 10px 14px;
-    background: var(--accent-soft);
+    background: var(--surface-3);
     border-radius: 10px;
-    border: 1px solid rgba(99,102,241,.12);
+    border: 1px solid var(--border);
 }
-#info-box p { margin: 0; font-size: .88rem; }
+#info-box p { margin: 0; font-size: .88rem; color: var(--text); }
 #info-box strong { color: var(--accent); }
 #info-box code {
     font-size: .78rem;
-    background: rgba(99,102,241,.08);
+    background: rgba(249,115,22,.12);
+    color: var(--accent);
     padding: 1px 6px;
     border-radius: 4px;
 }
@@ -297,19 +306,56 @@ footer { display: none !important; }
 with gr.Blocks(
     title="CV Transfer + Grad-CAM",
     css=CSS,
-    theme=gr.themes.Soft(
-        primary_hue="indigo",
-        secondary_hue="slate",
-        neutral_hue="slate",
+    theme=gr.themes.Base(
+        primary_hue=gr.themes.colors.orange,
+        secondary_hue=gr.themes.colors.orange,
+        neutral_hue=gr.themes.colors.gray,
         font=gr.themes.GoogleFont("Inter"),
         radius_size=gr.themes.sizes.radius_lg,
+    ).set(
+        body_background_fill="#0f0f0f",
+        body_background_fill_dark="#0f0f0f",
+        body_text_color="#f1f1f1",
+        body_text_color_dark="#f1f1f1",
+        block_background_fill="#1a1a1a",
+        block_background_fill_dark="#1a1a1a",
+        block_border_color="#2e2e2e",
+        block_border_color_dark="#2e2e2e",
+        block_label_text_color="#a1a1a1",
+        block_label_text_color_dark="#a1a1a1",
+        block_title_text_color="#f1f1f1",
+        block_title_text_color_dark="#f1f1f1",
+        input_background_fill="#242424",
+        input_background_fill_dark="#242424",
+        input_border_color="#2e2e2e",
+        input_border_color_dark="#2e2e2e",
+        button_primary_background_fill="#f97316",
+        button_primary_background_fill_dark="#f97316",
+        button_primary_background_fill_hover="#ea580c",
+        button_primary_background_fill_hover_dark="#ea580c",
+        button_primary_text_color="#ffffff",
+        button_primary_text_color_dark="#ffffff",
+        button_secondary_background_fill="#242424",
+        button_secondary_background_fill_dark="#242424",
+        button_secondary_text_color="#f1f1f1",
+        button_secondary_text_color_dark="#f1f1f1",
+        border_color_primary="#f97316",
+        border_color_primary_dark="#f97316",
+        color_accent_soft="rgba(249,115,22,.15)",
+        color_accent_soft_dark="rgba(249,115,22,.15)",
+        background_fill_primary="#1a1a1a",
+        background_fill_primary_dark="#1a1a1a",
+        background_fill_secondary="#242424",
+        background_fill_secondary_dark="#242424",
+        shadow_drop="0 1px 3px rgba(0,0,0,.3)",
+        shadow_drop_lg="0 4px 16px rgba(0,0,0,.4)",
     ),
 ) as demo:
 
     # ── Header ──
     gr.HTML("""
     <div class="app-header">
-        <h1>CV Transfer Learning + Grad-CAM</h1>
+        <h1>🔥 CV Transfer Learning + Grad-CAM</h1>
         <p>Image classification with visual explanations</p>
         <div class="badge-row">
             <span class="badge pytorch">PyTorch</span>
