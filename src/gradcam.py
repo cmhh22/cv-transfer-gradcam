@@ -165,14 +165,20 @@ class GradCAM:
         if self.target_layer is None:
             last_conv_layer = None
             for layer in reversed(self.model.layers):
+                # Check by layer type name (most reliable)
+                layer_class = layer.__class__.__name__
+                if 'Conv2D' in layer_class or 'Conv2d' in layer_class:
+                    last_conv_layer = layer
+                    break
+                # Fallback: check output shape
                 try:
                     output_shape = layer.output_shape
                     if isinstance(output_shape, list):
                         output_shape = output_shape[0]
-                    if len(output_shape) == 4:  # Conv layer (batch, h, w, c)
+                    if isinstance(output_shape, tuple) and len(output_shape) == 4:
                         last_conv_layer = layer
                         break
-                except (AttributeError, RuntimeError):
+                except (AttributeError, RuntimeError, ValueError):
                     continue
             if last_conv_layer is None:
                 raise ValueError("Could not auto-detect a convolutional layer in the model")
