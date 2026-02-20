@@ -4,7 +4,7 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/cv-transfer-gradcam.git
+git clone https://github.com/cmhh22/cv-transfer-gradcam.git
 cd cv-transfer-gradcam
 
 # Create virtual environment
@@ -43,11 +43,13 @@ model.load_pretrained()
 
 # Predict
 image = Image.open('image.jpg')
-prediction, confidence = model.predict(image)
-print(f"{prediction}: {confidence:.2%}")
+results = model.predict(image, top_k=5)
+for name, conf in results:
+    print(f"{name}: {conf:.2%}")
 
 # Grad-CAM
-gradcam = GradCAM(model.model, framework='pytorch')
+target_layer = model.get_target_layer_name()
+gradcam = GradCAM(model.model, framework='pytorch', target_layer=target_layer)
 heatmap = gradcam.generate_heatmap(image)
 overlay = gradcam.overlay_heatmap(image, heatmap)
 overlay.save('result.jpg')
@@ -61,13 +63,15 @@ from src.gradcam import GradCAM
 
 # Load model
 model = TensorFlowTransferModel(model_name='ResNet50')
-model.load_pretrained()
 
 # Predict
-prediction, confidence = model.predict(image)
+results = model.predict(image, top_k=5)
+for name, conf in results:
+    print(f"{name}: {conf:.2%}")
 
 # Grad-CAM
-gradcam = GradCAM(model.model, framework='tensorflow')
+target_layer = model.get_target_layer_name()
+gradcam = GradCAM(model.model, framework='tensorflow', target_layer=target_layer)
 heatmap = gradcam.generate_heatmap(image)
 ```
 
@@ -92,7 +96,7 @@ model.train_model(train_loader, val_loader, epochs=20)
 3. Push code:
 
 ```bash
-git remote add hf https://huggingface.co/spaces/YOUR_USERNAME/cv-transfer-gradcam
+git remote add hf https://huggingface.co/spaces/cmhh22/cv-transfer-gradcam
 git push hf main
 ```
 

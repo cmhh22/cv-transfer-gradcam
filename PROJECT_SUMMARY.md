@@ -215,9 +215,9 @@ docker run -p 7860:7860 cv-transfer-gradcam
 - **Deep Learning**: PyTorch 2.0+, TensorFlow 2.13+
 - **Computer Vision**: torchvision, OpenCV, PIL
 - **Web Interface**: Gradio 4.0+
-- **Visualization**: Matplotlib, Seaborn
+- **Visualization**: Matplotlib
 - **Deployment**: Docker, HuggingFace Spaces
-- **Development**: Jupyter, pytest, black
+- **Development**: Jupyter
 
 ---
 

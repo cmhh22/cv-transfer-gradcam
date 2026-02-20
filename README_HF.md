@@ -43,7 +43,7 @@ Grad-CAM produces visual explanations for CNN decisions by highlighting importan
 
 ## Repository
 
-Full source code and documentation: [GitHub](https://github.com/yourusername/cv-transfer-gradcam)
+Full source code and documentation: [GitHub](https://github.com/cmhh22/cv-transfer-gradcam)
 
 ## Citation
 
@@ -55,7 +55,7 @@ If you use this project in your research, please cite:
   title = {CV Transfer Learning + Grad-CAM},
   year = {2026},
   publisher = {HuggingFace},
-  howpublished = {\url{https://huggingface.co/spaces/username/cv-transfer-gradcam}}
+  howpublished = {\url{https://huggingface.co/spaces/cmhh22/cv-transfer-gradcam}}
 }
 ```
 

@@ -41,7 +41,7 @@ Features an interactive **Gradio** demo for image classification with visual exp
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/cv-transfer-gradcam.git
+git clone https://github.com/cmhh22/cv-transfer-gradcam.git
 cd cv-transfer-gradcam
 
 # Create virtual environment
@@ -76,18 +76,20 @@ from src.gradcam import GradCAM
 
 # Load model
 model = PyTorchTransferModel(model_name='resnet50', num_classes=1000)
-model.load_pretrained()
 
-# Make prediction
+# Make prediction (returns top-5 list of (name, confidence) tuples)
 image = Image.open('path/to/image.jpg')
-prediction, confidence = model.predict(image)
-print(f"Prediction: {prediction} ({confidence:.2%})")
+results = model.predict(image, top_k=5)
+for name, conf in results:
+    print(f"{name}: {conf:.2%}")
 
 # Generate Grad-CAM
-gradcam = GradCAM(model.model, framework='pytorch')
+target_layer = model.get_target_layer_name()
+gradcam = GradCAM(model.model, framework='pytorch', target_layer=target_layer)
 heatmap = gradcam.generate_heatmap(image)
 overlay = gradcam.overlay_heatmap(image, heatmap)
 overlay.save('gradcam_result.jpg')
+gradcam.remove_hooks()  # cleanup
 ```
 
 ## 📖 Usage
@@ -201,16 +203,6 @@ train_loader, val_loader = prepare_dataset(
 )
 ```
 
-### Training Script
-
-```bash
-# PyTorch
-python src/train_pytorch.py --model resnet50 --epochs 20 --lr 0.001 --data data/
-
-# TensorFlow
-python src/train_tensorflow.py --model ResNet50 --epochs 20 --lr 0.001 --data data/
-```
-
 ## ☁️ Deployment
 
 ### HuggingFace Spaces
@@ -220,7 +212,7 @@ python src/train_tensorflow.py --model ResNet50 --epochs 20 --lr 0.001 --data da
 3. Push your code:
 
 ```bash
-git remote add hf https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE
+git remote add hf https://huggingface.co/spaces/YOUR_USERNAME/cv-transfer-gradcam
 git push hf main
 ```
 
@@ -249,18 +241,12 @@ cv-transfer-gradcam/
 │   ├── pytorch_transfer.py    # PyTorch transfer learning
 │   ├── tensorflow_transfer.py # TensorFlow transfer learning
 │   ├── gradcam.py             # Grad-CAM implementation
-│   ├── utils.py               # Utility functions
-│   ├── train_pytorch.py       # PyTorch training script
-│   └── train_tensorflow.py    # TensorFlow training script
+│   └── utils.py               # Utility functions
 ├── models/                     # Saved models
 ├── data/                       # Dataset directory
-│   ├── train/
-│   └── val/
 ├── examples/                   # Example images
 ├── notebooks/                  # Jupyter notebooks
-│   ├── 01_pytorch_tutorial.ipynb
-│   ├── 02_tensorflow_tutorial.ipynb
-│   └── 03_gradcam_analysis.ipynb
+│   └── 01_pytorch_tutorial.ipynb
 └── docs/                       # Additional documentation
     ├── TRAINING.md
     └── API.md
@@ -271,8 +257,6 @@ cv-transfer-gradcam/
 See the `notebooks/` directory for detailed tutorials:
 
 - **PyTorch Tutorial**: Transfer learning from scratch
-- **TensorFlow Tutorial**: Fine-tuning best practices
-- **Grad-CAM Analysis**: Understanding model decisions
 
 ## 🤝 Contributing
 
@@ -303,7 +287,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-For questions or feedback, please open an issue or contact [your-email@example.com](mailto:your-email@example.com)
+For questions or feedback, please open an issue on [GitHub](https://github.com/cmhh22/cv-transfer-gradcam/issues)
 
 ---
 

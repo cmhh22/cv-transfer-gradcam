@@ -146,9 +146,11 @@ with gr.Blocks(title="CV Transfer Learning + Grad-CAM",
 
     # ── Examples (only if files exist) ──
     example_pairs = [
-        ["examples/cat.jpg",  "PyTorch",     "ResNet50"],
-        ["examples/dog.jpg",  "PyTorch",     "MobileNetV2"],
-        ["examples/bird.jpg", "TensorFlow",  "VGG16"],
+        ["examples/cat.jpg",   "PyTorch",     "ResNet50"],
+        ["examples/dog.jpeg",  "PyTorch",     "MobileNetV2"],
+        ["examples/bird.jpg",  "TensorFlow",  "VGG16"],
+        ["examples/car.jpg",   "PyTorch",     "EfficientNetB0"],
+        ["examples/flower.jpg","TensorFlow",  "ResNet50"],
     ]
     existing = [e for e in example_pairs if os.path.isfile(e[0])]
     if existing:
