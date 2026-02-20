@@ -11,213 +11,186 @@ from tensorflow.keras.applications import (
 )
 import numpy as np
 from PIL import Image
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
+import json
+import urllib.request
+from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# ImageNet labels cache
+# ---------------------------------------------------------------------------
+_IMAGENET_LABELS: Optional[list] = None
+
+
+def get_imagenet_labels() -> list:
+    """Load ImageNet class names with local file caching."""
+    global _IMAGENET_LABELS
+    if _IMAGENET_LABELS is not None:
+        return _IMAGENET_LABELS
+
+    cache_path = Path(__file__).parent.parent / "data" / "imagenet_labels.json"
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if cache_path.exists():
+        try:
+            _IMAGENET_LABELS = json.loads(cache_path.read_text())
+            return _IMAGENET_LABELS
+        except Exception:
+            pass
+
+    try:
+        url = "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json"
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            _IMAGENET_LABELS = json.loads(resp.read().decode())
+        cache_path.write_text(json.dumps(_IMAGENET_LABELS))
+    except Exception:
+        _IMAGENET_LABELS = [f"class_{i}" for i in range(1000)]
+
+    return _IMAGENET_LABELS
+
+
+# ---------------------------------------------------------------------------
+# Preprocessing functions per architecture
+# ---------------------------------------------------------------------------
+_PREPROCESS_FN = {
+    'ResNet50':       keras.applications.resnet.preprocess_input,
+    'ResNet101':      keras.applications.resnet.preprocess_input,
+    'VGG16':          keras.applications.vgg16.preprocess_input,
+    'VGG19':          keras.applications.vgg19.preprocess_input,
+    'EfficientNetB0': keras.applications.efficientnet.preprocess_input,
+    'MobileNetV2':    keras.applications.mobilenet_v2.preprocess_input,
+}
+
+# Best Grad-CAM target layer names per architecture (when using include_top=True)
+TARGET_LAYERS = {
+    'ResNet50':       'conv5_block3_out',
+    'ResNet101':      'conv5_block3_out',
+    'VGG16':          'block5_conv3',
+    'VGG19':          'block5_conv4',
+    'EfficientNetB0': 'top_conv',
+    'MobileNetV2':    'out_relu',
+}
+
 
 class TensorFlowTransferModel:
-    """Transfer Learning with TensorFlow/Keras pre-trained models"""
-    
-    def __init__(self, model_name: str = 'ResNet50', num_classes: int = 1000, 
+    """Transfer Learning with TensorFlow/Keras pre-trained models."""
+
+    MODEL_MAP = {
+        'ResNet50':       ResNet50,
+        'ResNet101':      ResNet101,
+        'VGG16':          VGG16,
+        'VGG19':          VGG19,
+        'EfficientNetB0': EfficientNetB0,
+        'MobileNetV2':    MobileNetV2,
+    }
+
+    def __init__(self, model_name: str = 'ResNet50', num_classes: int = 1000,
                  input_shape: Tuple[int, int, int] = (224, 224, 3)):
-        """
-        Initialize transfer learning model
-        
-        Args:
-            model_name: Name of the architecture ('ResNet50', 'VGG16', etc.)
-            num_classes: Number of output classes
-            input_shape: Input image shape (height, width, channels)
-        """
         self.model_name = model_name
         self.num_classes = num_classes
         self.input_shape = input_shape
-        
-        # Load model
+
+        if self.model_name not in self.MODEL_MAP:
+            raise ValueError(
+                f"Model '{self.model_name}' not supported. "
+                f"Choose from: {list(self.MODEL_MAP.keys())}"
+            )
+
         self.model = self._build_model()
-        
-        # ImageNet classes
-        self.class_names = self._load_imagenet_classes()
-    
+        self.class_names = get_imagenet_labels()
+
+    # ------------------------------------------------------------------ #
     def _build_model(self, pretrained: bool = True) -> keras.Model:
-        """Build the transfer learning model"""
         weights = 'imagenet' if pretrained else None
-
-        model_map = {
-            'ResNet50': ResNet50,
-            'ResNet101': ResNet101,
-            'VGG16': VGG16,
-            'VGG19': VGG19,
-            'EfficientNetB0': EfficientNetB0,
-            'MobileNetV2': MobileNetV2,
-        }
-
-        if self.model_name not in model_map:
-            raise ValueError(f"Model {self.model_name} not supported. Choose from: {list(model_map.keys())}")
-
-        model_cls = model_map[self.model_name]
+        model_cls = self.MODEL_MAP[self.model_name]
 
         if self.num_classes == 1000 and pretrained:
-            # Use full pretrained model with top (ImageNet classification)
-            model = model_cls(weights='imagenet', input_shape=self.input_shape)
-        else:
-            # Build custom classification head
-            base_model = model_cls(weights=weights, include_top=False, input_shape=self.input_shape)
-            model = keras.Sequential([
-                base_model,
-                layers.GlobalAveragePooling2D(),
-                layers.Dropout(0.5),
-                layers.Dense(self.num_classes, activation='softmax')
-            ])
+            return model_cls(weights='imagenet', input_shape=self.input_shape)
 
-        return model
-    
-    def _load_imagenet_classes(self) -> list:
-        """Load ImageNet class names"""
-        try:
-            import urllib.request
-            import json
-            
-            url = "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json"
-            with urllib.request.urlopen(url) as response:
-                classes = json.loads(response.read().decode())
-            return classes
-        except:
-            return [f"class_{i}" for i in range(1000)]
-    
+        base = model_cls(weights=weights, include_top=False,
+                         input_shape=self.input_shape)
+        return keras.Sequential([
+            base,
+            layers.GlobalAveragePooling2D(),
+            layers.Dropout(0.5),
+            layers.Dense(self.num_classes, activation='softmax'),
+        ])
+
     def load_pretrained(self):
-        """Load pretrained ImageNet weights"""
         self.model = self._build_model(pretrained=True)
-    
+
+    # ------------------------------------------------------------------ #
+    # Preprocessing
+    # ------------------------------------------------------------------ #
     def preprocess_image(self, image: Image.Image) -> np.ndarray:
-        """Preprocess image for model input"""
-        # Resize image
-        image = image.resize((self.input_shape[1], self.input_shape[0]))
-        
-        # Convert to array
-        img_array = np.array(image, dtype=np.float32)
-        img_array = np.expand_dims(img_array, axis=0)
-        
-        # Preprocess based on model
-        if self.model_name.startswith('ResNet'):
-            img_array = keras.applications.resnet.preprocess_input(img_array)
-        elif self.model_name.startswith('VGG'):
-            img_array = keras.applications.vgg16.preprocess_input(img_array)
-        elif self.model_name.startswith('EfficientNet'):
-            img_array = keras.applications.efficientnet.preprocess_input(img_array)
-        elif self.model_name.startswith('MobileNet'):
-            img_array = keras.applications.mobilenet_v2.preprocess_input(img_array)
-        
-        return img_array
-    
-    def predict(self, image: Image.Image, top_k: int = 1) -> Tuple[str, float]:
+        """Resize, convert and apply model-specific normalization."""
+        image = image.convert('RGB').resize(
+            (self.input_shape[1], self.input_shape[0]))
+        arr = np.array(image, dtype=np.float32)
+        arr = np.expand_dims(arr, axis=0)
+
+        fn = _PREPROCESS_FN.get(self.model_name)
+        if fn is not None:
+            arr = fn(arr.copy())  # copy to avoid negative stride issues
+        return arr
+
+    # ------------------------------------------------------------------ #
+    # Prediction
+    # ------------------------------------------------------------------ #
+    def predict(self, image: Image.Image, top_k: int = 5) -> List[Tuple[str, float]]:
         """
-        Make prediction on a single image
-        
-        Args:
-            image: PIL Image
-            top_k: Return top k predictions
-            
-        Returns:
-            Tuple of (prediction, confidence)
+        Classify an image, returning top-k results.
+
+        Returns
+        -------
+        list of (class_name, confidence) tuples sorted by confidence descending.
         """
-        # Preprocess image
-        img_array = self.preprocess_image(image)
-        
-        # Make prediction
-        predictions = self.model.predict(img_array, verbose=0)
-        
-        # Get top predictions
-        top_indices = np.argsort(predictions[0])[::-1][:top_k]
-        
-        if top_k == 1:
-            pred_class = top_indices[0]
-            pred_prob = predictions[0][pred_class]
-            pred_name = self.class_names[pred_class] if pred_class < len(self.class_names) else f"class_{pred_class}"
-            return pred_name, float(pred_prob)
-        else:
-            results = []
-            for idx in top_indices:
-                pred_prob = predictions[0][idx]
-                pred_name = self.class_names[idx] if idx < len(self.class_names) else f"class_{idx}"
-                results.append((pred_name, float(pred_prob)))
-            return results
-    
+        arr = self.preprocess_image(image)
+        preds = self.model.predict(arr, verbose=0)[0]
+
+        top_indices = np.argsort(preds)[::-1][:top_k]
+        results = []
+        for idx in top_indices:
+            name = self.class_names[idx] if idx < len(self.class_names) else f"class_{idx}"
+            results.append((name, round(float(preds[idx]), 5)))
+        return results
+
+    def get_target_layer_name(self) -> Optional[str]:
+        """Return recommended Grad-CAM target layer for this architecture."""
+        return TARGET_LAYERS.get(self.model_name)
+
+    # ------------------------------------------------------------------ #
+    # Training helpers
+    # ------------------------------------------------------------------ #
     def freeze_layers(self, freeze_base: bool = True):
-        """Freeze base model layers for fine-tuning"""
         if isinstance(self.model, keras.Sequential):
-            base_model = self.model.layers[0]
-            base_model.trainable = not freeze_base
+            self.model.layers[0].trainable = not freeze_base
         else:
             self.model.trainable = not freeze_base
-    
-    def compile_model(self, learning_rate: float = 0.001, loss: str = 'categorical_crossentropy'):
-        """Compile the model"""
+
+    def compile_model(self, learning_rate: float = 0.001,
+                      loss: str = 'categorical_crossentropy'):
         self.model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
             loss=loss,
-            metrics=['accuracy', 'top_k_categorical_accuracy']
+            metrics=['accuracy', 'top_k_categorical_accuracy'],
         )
-    
-    def train_model(self, train_ds, val_ds, epochs: int = 10, 
-                   callbacks: Optional[list] = None):
-        """
-        Train the model
-        
-        Args:
-            train_ds: Training dataset
-            val_ds: Validation dataset
-            epochs: Number of training epochs
-            callbacks: List of Keras callbacks
-        """
+
+    def train_model(self, train_ds, val_ds, epochs: int = 10,
+                    callbacks: Optional[list] = None):
         if callbacks is None:
             callbacks = [
                 keras.callbacks.EarlyStopping(
-                    monitor='val_loss',
-                    patience=5,
-                    restore_best_weights=True
-                ),
+                    monitor='val_loss', patience=5, restore_best_weights=True),
                 keras.callbacks.ReduceLROnPlateau(
-                    monitor='val_loss',
-                    factor=0.1,
-                    patience=3
-                )
+                    monitor='val_loss', factor=0.1, patience=3),
             ]
-        
-        history = self.model.fit(
-            train_ds,
-            validation_data=val_ds,
-            epochs=epochs,
-            callbacks=callbacks
-        )
-        
-        return history
-    
+        return self.model.fit(train_ds, validation_data=val_ds,
+                              epochs=epochs, callbacks=callbacks)
+
     def save(self, path: str):
-        """Save model"""
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.model.save(path)
-        print(f"Model saved to {path}")
-    
+
     def load(self, path: str):
-        """Load model"""
         self.model = keras.models.load_model(path)
-        print(f"Model loaded from {path}")
-    
-    def get_feature_extractor(self, layer_name: Optional[str] = None):
-        """Get intermediate features from a specific layer"""
-        if layer_name is None:
-            # Return features before final layer
-            if isinstance(self.model, keras.Sequential):
-                return keras.Model(
-                    inputs=self.model.input,
-                    outputs=self.model.layers[-2].output
-                )
-            else:
-                return keras.Model(
-                    inputs=self.model.input,
-                    outputs=self.model.layers[-2].output
-                )
-        else:
-            # Return specific layer
-            layer = self.model.get_layer(layer_name)
-            return keras.Model(
-                inputs=self.model.input,
-                outputs=layer.output
-            )

@@ -1,14 +1,15 @@
 """
 CV Transfer Learning + Grad-CAM Demo
-Gradio application for image classification with visualization using transfer learning
-Supports both PyTorch and TensorFlow backends
+Interactive Gradio app for image classification with visual explanations.
+Supports PyTorch & TensorFlow backends.
 """
-import gradio as gr
-import numpy as np
-from PIL import Image
 import os
+import time
+import numpy as np
+import gradio as gr
+from PIL import Image
 
-# Lazy framework imports
+# ── Lazy framework imports ──────────────────────────────────────────────
 try:
     import torch
     from src.pytorch_transfer import PyTorchTransferModel
@@ -23,134 +24,169 @@ except ImportError:
 
 from src.gradcam import GradCAM
 
+# ── Model cache (avoid re-downloading weights per request) ─────────────
+_MODEL_CACHE = {}
+
+
+def _get_model(framework: str, model_name: str):
+    """Return a cached model instance, lazily created."""
+    key = f"{framework}_{model_name}"
+    if key not in _MODEL_CACHE:
+        if framework == "PyTorch":
+            m = PyTorchTransferModel(model_name=model_name.lower(),
+                                     num_classes=1000)
+        else:
+            m = TensorFlowTransferModel(model_name=model_name,
+                                        num_classes=1000)
+        _MODEL_CACHE[key] = m
+    return _MODEL_CACHE[key]
+
+
+# ── Main prediction function ───────────────────────────────────────────
+
 def predict_with_gradcam(image, framework, model_name):
-    """
-    Make prediction and generate Grad-CAM heatmap
-    
-    Args:
-        image: Input image
-        framework: 'pytorch' or 'tensorflow'
-        model_name: Model architecture name
-        
-    Returns:
-        prediction: Class label and confidence
-        heatmap: Grad-CAM visualization
-    """
+    """Classify image, return top-5 predictions + Grad-CAM overlays."""
     if image is None:
-        return "Please upload an image", None, None
-    
+        return {}, None, None, "⚠️ Please upload an image first."
+
     try:
-        # Convert to PIL Image if needed
         if not isinstance(image, Image.Image):
             image = Image.fromarray(image)
-        
-        # Ensure RGB mode
-        image = image.convert('RGB')
-        
-        if framework == 'PyTorch':
-            if PyTorchTransferModel is None:
-                return "PyTorch is not installed. Install it with: pip install torch torchvision", None, None
-            model = PyTorchTransferModel(model_name=model_name.lower(), num_classes=1000)
-            model.load_pretrained()
-            prediction, confidence = model.predict(image)
-            gradcam = GradCAM(model.model, framework='pytorch')
-            heatmap = gradcam.generate_heatmap(image, target_class=None)
-            
-        else:  # TensorFlow
-            if TensorFlowTransferModel is None:
-                return "TensorFlow is not installed. Install it with: pip install tensorflow", None, None
-            model = TensorFlowTransferModel(model_name=model_name, num_classes=1000)
-            model.load_pretrained()
-            prediction, confidence = model.predict(image)
-            gradcam = GradCAM(model.model, framework='tensorflow')
-            heatmap = gradcam.generate_heatmap(image, target_class=None)
-        
-        result_text = f"**Prediction:** {prediction}\n**Confidence:** {confidence:.2%}"
-        
-        # Overlay heatmap on original image
-        overlay = gradcam.overlay_heatmap(image, heatmap)
-        
-        return result_text, overlay, heatmap
-        
-    except Exception as e:
-        return f"Error: {str(e)}", None, None
+        image = image.convert("RGB")
 
-# Create Gradio Interface
-with gr.Blocks(title="CV Transfer Learning + Grad-CAM", theme=gr.themes.Soft()) as demo:
-    gr.Markdown("""
-    # 🔥 CV Transfer Learning + Grad-CAM Visualization
-    
-    Upload an image to classify it using **Transfer Learning** and visualize the model's decision 
-    with **Grad-CAM** (Gradient-weighted Class Activation Mapping).
-    
-    ### Features:
-    - 🔄 **Dual Framework Support**: PyTorch & TensorFlow
-    - 🎯 **Multiple Architectures**: ResNet, VGG, EfficientNet, MobileNet
-    - 🔍 **Grad-CAM Heatmaps**: See what the model focuses on
-    - 🚀 **Pre-trained on ImageNet**: 1000 classes recognition
+        # Framework availability check
+        if framework == "PyTorch" and PyTorchTransferModel is None:
+            return ({}, None, None,
+                    "❌ PyTorch not installed (`pip install torch torchvision`)")
+        if framework == "TensorFlow" and TensorFlowTransferModel is None:
+            return ({}, None, None,
+                    "❌ TensorFlow not installed (`pip install tensorflow`)")
+
+        t0 = time.time()
+        model = _get_model(framework, model_name)
+
+        # ── Prediction (top-5) ──
+        results = model.predict(image, top_k=5)
+        elapsed = time.time() - t0
+
+        # Convert to {label: confidence} for gr.Label
+        label_dict = {name: conf for name, conf in results}
+
+        # ── Grad-CAM ──
+        fw = "pytorch" if framework == "PyTorch" else "tensorflow"
+        target_layer = model.get_target_layer_name()
+        gradcam = GradCAM(model.model, framework=fw,
+                          target_layer=target_layer)
+
+        heatmap = gradcam.generate_heatmap(image, target_class=None)
+        overlay = gradcam.overlay_heatmap(image, heatmap, alpha=0.45)
+
+        # Clean up hooks (PyTorch)
+        if fw == "pytorch":
+            gradcam.remove_hooks()
+
+        # Build info text
+        top_name, top_conf = results[0]
+        info = (f"### 🏷️ {top_name}  ({top_conf:.1%})\n"
+                f"**Framework:** {framework}  |  "
+                f"**Model:** {model_name}  |  "
+                f"**Time:** {elapsed:.2f}s  |  "
+                f"**Image:** {image.size[0]}×{image.size[1]}")
+
+        return label_dict, overlay, heatmap, info
+
+    except Exception as e:
+        return {}, None, None, f"❌ Error: {e}"
+
+
+# ── Gradio UI ──────────────────────────────────────────────────────────
+
+CSS = """
+.main-title { text-align: center; margin-bottom: 0.2em; }
+.sub { text-align: center; opacity: 0.7; margin-top: 0; }
+footer { display: none !important; }
+"""
+
+with gr.Blocks(title="CV Transfer Learning + Grad-CAM",
+               css=CSS) as demo:
+
+    gr.HTML("""
+    <h1 class='main-title'>🔥 CV Transfer Learning + Grad-CAM</h1>
+    <p class='sub'>Image classification with visual explanations &mdash;
+        PyTorch &amp; TensorFlow</p>
     """)
-    
-    with gr.Row():
-        with gr.Column(scale=1):
-            image_input = gr.Image(type="pil", label="Upload Image")
-            
-            framework_dropdown = gr.Dropdown(
-                choices=["PyTorch", "TensorFlow"],
-                value="PyTorch",
-                label="Framework"
-            )
-            
-            model_dropdown = gr.Dropdown(
-                choices=["ResNet50", "ResNet101", "VGG16", "VGG19", 
-                        "EfficientNetB0", "MobileNetV2"],
-                value="ResNet50",
-                label="Model Architecture"
-            )
-            
-            predict_btn = gr.Button("🔍 Classify & Visualize", variant="primary")
-        
-        with gr.Column(scale=1):
-            prediction_output = gr.Markdown(label="Prediction Result")
-            
+
+    with gr.Row(equal_height=True):
+        # ── Left column: inputs ──
+        with gr.Column(scale=1, min_width=340):
+            image_input = gr.Image(type="pil", label="📷 Upload Image",
+                                   height=300)
+            with gr.Row():
+                framework_dd = gr.Dropdown(
+                    choices=["PyTorch", "TensorFlow"],
+                    value="PyTorch", label="Framework", scale=1)
+                model_dd = gr.Dropdown(
+                    choices=["ResNet50", "ResNet101", "VGG16", "VGG19",
+                             "EfficientNetB0", "MobileNetV2"],
+                    value="ResNet50", label="Architecture", scale=1)
+
+            predict_btn = gr.Button("🔍 Classify & Visualize",
+                                    variant="primary", size="lg")
+
+        # ── Right column: results ──
+        with gr.Column(scale=1, min_width=340):
+            info_md = gr.Markdown(value="*Upload an image and click Classify*")
+            label_out = gr.Label(num_top_classes=5,
+                                 label="Top-5 Predictions")
             with gr.Tabs():
                 with gr.Tab("Grad-CAM Overlay"):
-                    overlay_output = gr.Image(label="Grad-CAM Overlay")
-                with gr.Tab("Heatmap Only"):
-                    heatmap_output = gr.Image(label="Grad-CAM Heatmap")
-    
-    # Examples — only show entries whose images exist
-    example_entries = [
-        ["examples/cat.jpg", "PyTorch", "ResNet50"],
-        ["examples/dog.jpg", "TensorFlow", "VGG16"],
+                    overlay_out = gr.Image(label="Overlay", height=300)
+                with gr.Tab("Heatmap"):
+                    heatmap_out = gr.Image(label="Heatmap", height=300)
+
+    # ── Examples (only if files exist) ──
+    example_pairs = [
+        ["examples/cat.jpg",  "PyTorch",     "ResNet50"],
+        ["examples/dog.jpg",  "PyTorch",     "MobileNetV2"],
+        ["examples/bird.jpg", "TensorFlow",  "VGG16"],
     ]
-    available_examples = [e for e in example_entries if os.path.isfile(e[0])]
-    if available_examples:
-        gr.Examples(
-            examples=available_examples,
-            inputs=[image_input, framework_dropdown, model_dropdown],
-        )
-    
-    gr.Markdown("""
-    ### About Grad-CAM
-    Grad-CAM produces visual explanations for decisions from CNN-based models by highlighting 
-    the important regions in the input image that led to the prediction.
-    
-    ### Models Available
-    - **ResNet**: Deep residual networks (50, 101 layers)
-    - **VGG**: Very deep networks (16, 19 layers)
-    - **EfficientNet**: Efficient scaling
-    - **MobileNet**: Lightweight for mobile deployment
-    """)
-    
-    # Connect button to function
+    existing = [e for e in example_pairs if os.path.isfile(e[0])]
+    if existing:
+        gr.Examples(examples=existing,
+                    inputs=[image_input, framework_dd, model_dd])
+
+    # ── Info footer ──
+    with gr.Accordion("ℹ️  About this project", open=False):
+        gr.Markdown("""
+**Grad-CAM** (Gradient-weighted Class Activation Mapping) highlights
+the regions in an image that most influenced the model's prediction.
+
+| Model | Params | Speed | Best for |
+|-------|--------|-------|----------|
+| MobileNetV2 | 3.4 M | ⚡ Fast | Mobile / quick tests |
+| ResNet50 | 25.6 M | 🟢 Medium | General purpose |
+| ResNet101 | 44.5 M | 🟡 Slower | Higher accuracy |
+| VGG16 / VGG19 | 138 M | 🔴 Slow | Classic architectures |
+| EfficientNetB0 | 5.3 M | ⚡ Fast | Best efficiency |
+
+**Tips for better predictions:**
+- Use clear, well-lit photos
+- Center the subject in the frame
+- Avoid heavy cropping — models work best at 224×224+
+- Try different models — EfficientNet & ResNet50 are usually most accurate
+
+Built with ❤️ using PyTorch, TensorFlow & Gradio
+        """)
+
+    # ── Connect ──
     predict_btn.click(
         fn=predict_with_gradcam,
-        inputs=[image_input, framework_dropdown, model_dropdown],
-        outputs=[prediction_output, overlay_output, heatmap_output]
+        inputs=[image_input, framework_dd, model_dd],
+        outputs=[label_out, overlay_out, heatmap_out, info_md],
     )
 
+
+# ── Launch ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    # Auto-detect Colab environment and enable share
-    import os
-    in_colab = 'COLAB_GPU' in os.environ or 'COLAB_TPU_ADDR' in os.environ
+    in_colab = "COLAB_GPU" in os.environ or "COLAB_TPU_ADDR" in os.environ
     demo.launch(share=in_colab)
