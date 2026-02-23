@@ -481,4 +481,11 @@ Built with PyTorch, TensorFlow & Gradio
 # ── Launch ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     in_colab = "COLAB_GPU" in os.environ or "COLAB_TPU_ADDR" in os.environ
-    demo.launch(share=in_colab)
+    in_hf_space = "SPACE_ID" in os.environ
+
+    if in_hf_space:
+        demo.launch(server_name="0.0.0.0", server_port=7860, share=False)
+    elif in_colab:
+        demo.launch(share=True)
+    else:
+        demo.launch()

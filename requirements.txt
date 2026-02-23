@@ -9,7 +9,7 @@ pillow>=10.0.0
 opencv-python-headless>=4.8.0
 
 # Web interface
-gradio>=4.0.0,<5.0.0
+gradio==4.44.1
 huggingface_hub<0.25.0
 
 # Visualization (optional, used in notebooks/training)
