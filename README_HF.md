@@ -1,13 +1,14 @@
 ---
 title: CV Transfer Learning + Grad-CAM
 emoji: 🔥
-colorFrom: blue
+colorFrom: orange
 colorTo: red
 sdk: gradio
-sdk_version: 4.0.0
+sdk_version: "4.44.0"
 app_file: app.py
 pinned: false
 license: mit
+python_version: "3.11"
 ---
 
 # 🔥 CV Transfer Learning + Grad-CAM
