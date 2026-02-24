@@ -117,32 +117,58 @@ def predict_with_gradcam(image, framework, model_name):
 
 
 def _build_label_html(results):
-    """Build an HTML bar chart from prediction results."""
+    """Build a polished HTML bar chart from prediction results."""
     if not results:
         return ""
     max_conf = max(conf for _, conf in results)
     rows = []
-    for name, conf in results:
+    for i, (name, conf) in enumerate(results):
         pct = conf * 100
         bar_w = (conf / max_conf * 100) if max_conf > 0 else 0
+        # Top result gets accent color, others get dimmer tone
+        if i == 0:
+            bar_bg = "linear-gradient(90deg,#f97316 0%,#fb923c 100%)"
+            rank_bg = "#f97316"
+            name_color = "#ffffff"
+            pct_color = "#f97316"
+        else:
+            bar_bg = "linear-gradient(90deg,#3a3a3a 0%,#4a4a4a 100%)"
+            rank_bg = "#333"
+            name_color = "#d4d4d4"
+            pct_color = "#a1a1a1"
         rows.append(
-            f'<div style="display:flex;align-items:center;gap:10px;margin:4px 0;">'
-            f'<span style="min-width:160px;font-size:.85rem;color:#f1f1f1;'
-            f'text-align:right;white-space:nowrap;overflow:hidden;'
-            f'text-overflow:ellipsis;">{name}</span>'
-            f'<div style="flex:1;background:#242424;border-radius:6px;'
-            f'height:22px;overflow:hidden;">'
-            f'<div style="width:{bar_w:.1f}%;height:100%;'
-            f'background:linear-gradient(90deg,#f97316,#fb923c);'
-            f'border-radius:6px;transition:width .4s ease;"></div></div>'
-            f'<span style="min-width:52px;font-size:.82rem;color:#a1a1a1;'
-            f'text-align:right;">{pct:.1f}%</span>'
+            f'<div style="display:flex;align-items:center;gap:10px;'
+            f'padding:6px 0;'
+            f'border-bottom:1px solid rgba(255,255,255,.04);">'
+            f'<span style="min-width:22px;height:22px;display:flex;'
+            f'align-items:center;justify-content:center;font-size:.7rem;'
+            f'font-weight:700;color:#fff;background:{rank_bg};'
+            f'border-radius:6px;">{i+1}</span>'
+            f'<span style="min-width:140px;max-width:180px;font-size:.84rem;'
+            f'color:{name_color};white-space:nowrap;overflow:hidden;'
+            f'text-overflow:ellipsis;font-weight:{"600" if i==0 else "400"};">'
+            f'{name}</span>'
+            f'<div style="flex:1;background:#1a1a1a;border-radius:8px;'
+            f'height:10px;overflow:hidden;">'
+            f'<div style="width:{bar_w:.1f}%;height:100%;{bar_bg};'
+            f'border-radius:8px;transition:width .5s cubic-bezier(.4,0,.2,1);">'
+            f'</div></div>'
+            f'<span style="min-width:52px;font-size:.82rem;color:{pct_color};'
+            f'text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">'
+            f'{pct:.1f}%</span>'
             f'</div>'
         )
     return (
-        f'<div style="padding:8px 0;">'
-        f'<div style="font-size:.78rem;color:#a1a1a1;margin-bottom:6px;'
-        f'font-weight:600;">Top-5 Predictions</div>'
+        f'<div style="padding:4px 0;">'
+        f'<div style="display:flex;align-items:center;gap:6px;'
+        f'margin-bottom:10px;">'
+        f'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" '
+        f'stroke="#f97316" stroke-width="2.5" stroke-linecap="round">'
+        f'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>'
+        f'<polyline points="22 4 12 14.01 9 11.01"/></svg>'
+        f'<span style="font-size:.75rem;color:#737373;font-weight:600;'
+        f'text-transform:uppercase;letter-spacing:.06em;">Predictions</span>'
+        f'</div>'
         f'{"".join(rows)}</div>'
     )
 
@@ -150,204 +176,297 @@ def _build_label_html(results):
 # ── CSS ────────────────────────────────────────────────────────────────
 
 CSS = """
-/* ── Root variables ── */
+/* ══════════════════════════════════════════════════════════════════
+   Design System — Dark + Orange Accent
+   Clean, modern, professional.  No gimmicks.
+   ══════════════════════════════════════════════════════════════════ */
+
 :root {
-    --accent: #f97316;
+    --accent:       #f97316;
     --accent-hover: #ea580c;
-    --accent-soft: rgba(249,115,22,.08);
-    --surface: #0f0f0f;
-    --surface-2: #1a1a1a;
-    --surface-3: #242424;
-    --border: #2e2e2e;
-    --text: #f1f1f1;
-    --text-muted: #a1a1a1;
-    --radius: 14px;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
-    --shadow-md: 0 4px 16px rgba(0,0,0,.4);
+    --accent-glow:  rgba(249,115,22,.12);
+    --bg:           #0a0a0a;
+    --surface:      #141414;
+    --surface-2:    #1c1c1c;
+    --surface-3:    #262626;
+    --border:       rgba(255,255,255,.06);
+    --border-hover: rgba(255,255,255,.12);
+    --text:         #e5e5e5;
+    --text-2:       #a3a3a3;
+    --text-3:       #737373;
+    --radius:       16px;
+    --radius-sm:    10px;
+    --radius-xs:    8px;
+    --transition:   .2s cubic-bezier(.4,0,.2,1);
 }
 
-/* ── Hide Gradio footer & scrollbar flicker ── */
+/* ── Reset & base ── */
+*, *::before, *::after { box-sizing: border-box; }
 footer { display: none !important; }
-.gradio-container {
-    max-width: 1100px !important;
-    margin: auto;
-    background: var(--surface) !important;
+body, .dark, .main, .app, .gradio-container {
+    background: var(--bg) !important;
+    color: var(--text);
 }
-.dark, body, .main, .app {
-    background: var(--surface) !important;
+.gradio-container {
+    max-width: 1120px !important;
+    margin: auto;
+    padding: 0 16px !important;
 }
 
 /* ── Header ── */
 .app-header {
     text-align: center;
-    padding: 28px 16px 12px;
+    padding: 36px 16px 20px;
 }
 .app-header h1 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--accent);
-    margin: 0 0 4px;
-    letter-spacing: -.02em;
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: #fff;
+    margin: 0 0 2px;
+    letter-spacing: -.03em;
+    line-height: 1.2;
 }
-.app-header p {
-    font-size: .92rem;
-    color: var(--text-muted);
+.app-header h1 .fire { filter: saturate(1.2); }
+.app-header .subtitle {
+    font-size: .88rem;
+    color: var(--text-3);
     margin: 0;
+    font-weight: 400;
 }
-.app-header .badge-row {
+.app-header .pill-row {
     display: flex;
     justify-content: center;
     gap: 6px;
-    margin-top: 10px;
+    margin-top: 14px;
     flex-wrap: wrap;
 }
-.app-header .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: .72rem;
+.pill {
+    font-size: .68rem;
     font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 20px;
-    letter-spacing: .01em;
+    padding: 4px 12px;
+    border-radius: 100px;
+    letter-spacing: .02em;
+    border: 1px solid transparent;
+    backdrop-filter: blur(4px);
 }
-.badge.pytorch  { background: #ee4c2c22; color: #ff6b5b; border: 1px solid #ee4c2c44; }
-.badge.tf       { background: #ff6f0022; color: #ffaa60; border: 1px solid #ff6f0044; }
-.badge.gradio   { background: #f9731622; color: #f97316; border: 1px solid #f9731644; }
-.badge.imagenet { background: #f9731622; color: #fbbf24; border: 1px solid #fbbf2444; }
+.pill.pt  { background: rgba(238,76,44,.08); color: #ff7b6b; border-color: rgba(238,76,44,.18); }
+.pill.tf  { background: rgba(255,111,0,.08); color: #ffba70; border-color: rgba(255,111,0,.18); }
+.pill.gc  { background: rgba(249,115,22,.08); color: #f97316; border-color: rgba(249,115,22,.18); }
+.pill.in  { background: rgba(251,191,36,.06); color: #fbbf24; border-color: rgba(251,191,36,.15); }
 
-/* ── Cards ── */
-.card {
-    background: var(--surface-2);
+/* ── Glass card wrapper ── */
+.panel-card {
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 20px;
-    box-shadow: var(--shadow-sm);
+    padding: 0;
+    overflow: hidden;
 }
 
-/* ── Predict button — FIXED SIZE ── */
+/* ── Predict button ── */
 #predict-btn {
     width: 100% !important;
-    min-height: 48px !important;
-    max-height: 48px !important;
-    height: 48px !important;
-    font-size: .95rem !important;
-    font-weight: 600 !important;
-    letter-spacing: .01em;
-    border-radius: 10px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    max-height: 46px !important;
+    font-size: .9rem !important;
+    font-weight: 700 !important;
+    letter-spacing: .02em;
+    border-radius: var(--radius-sm) !important;
     background: var(--accent) !important;
     color: #fff !important;
     border: none !important;
     cursor: pointer;
-    transition: background .2s, box-shadow .2s, transform .1s;
-    box-shadow: 0 2px 8px rgba(249,115,22,.3);
+    transition: all var(--transition);
+    box-shadow: 0 0 0 0 transparent, 0 2px 8px rgba(249,115,22,.25);
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     overflow: hidden !important;
+    padding: 0 20px !important;
     flex-shrink: 0 !important;
-    line-height: 1 !important;
-    padding: 0 16px !important;
-    box-sizing: border-box !important;
+    position: relative;
+}
+#predict-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,.12) 0%, transparent 60%);
+    pointer-events: none;
+    border-radius: inherit;
 }
 #predict-btn:hover {
     background: var(--accent-hover) !important;
-    box-shadow: 0 4px 14px rgba(249,115,22,.45);
+    box-shadow: 0 0 20px rgba(249,115,22,.2), 0 4px 12px rgba(249,115,22,.3);
     transform: translateY(-1px);
 }
 #predict-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 4px rgba(249,115,22,.2);
+    transform: translateY(0) scale(.99);
+    box-shadow: 0 0 0 0 transparent, 0 1px 4px rgba(249,115,22,.2);
 }
 
-/* ── Kill extra spinners — show only ONE loader ── */
-#predict-btn .wrap,
-#predict-btn .loading,
-.results-col .progress-bar,
-.results-col .wrap.default,
+/* ── Kill extra spinners ── */
+#predict-btn .wrap, #predict-btn .loading,
+.results-col .progress-bar, .results-col .wrap.default,
 .results-col > div > .wrap.default,
-#overlay-img .wrap,
-#heatmap-img .wrap,
-#info-box .wrap {
+#overlay-img .wrap, #heatmap-img .wrap, #info-box .wrap {
     display: none !important;
 }
-/* Only the results area keeps its subtle loader */
 
-/* ── Label (predictions) ── */
+/* ── Predictions panel ── */
 #label-out {
     position: relative;
-    min-height: 100px;
-    background: var(--surface-2);
+    min-height: 80px;
+    background: var(--surface);
     border-radius: var(--radius);
-    padding: 12px 16px;
+    padding: 14px 18px;
     border: 1px solid var(--border);
 }
 
-/* ── Dropdown selects ── */
-.settings-row .gr-dropdown {
-    border-radius: 10px !important;
+/* ── Dropdowns ── */
+.settings-row select, .settings-row .gr-dropdown,
+.settings-row input {
+    border-radius: var(--radius-xs) !important;
+    background: var(--surface-2) !important;
+    border-color: var(--border) !important;
+    transition: border-color var(--transition);
+}
+.settings-row select:focus, .settings-row .gr-dropdown:focus-within {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
-/* ── Image upload area ── */
+/* ── Image upload ── */
 #img-upload {
-    border: 2px dashed var(--border) !important;
+    border: 2px dashed rgba(255,255,255,.08) !important;
     border-radius: var(--radius) !important;
-    transition: border-color .2s;
-    min-height: 260px;
+    transition: border-color var(--transition), background var(--transition);
+    min-height: 270px;
+    background: var(--surface) !important;
 }
-#img-upload:hover { border-color: var(--accent) !important; }
+#img-upload:hover {
+    border-color: rgba(249,115,22,.35) !important;
+    background: rgba(249,115,22,.02) !important;
+}
 
-/* ── Result info ── */
+/* ── Info box ── */
 #info-box {
-    min-height: 48px;
-    padding: 10px 14px;
-    background: var(--surface-3);
-    border-radius: 10px;
+    min-height: 44px;
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
 }
-#info-box p { margin: 0; font-size: .88rem; color: var(--text); }
-#info-box strong { color: var(--accent); }
+#info-box p { margin: 0; font-size: .86rem; color: var(--text); line-height: 1.5; }
+#info-box strong { color: #fff; }
 #info-box code {
-    font-size: .78rem;
-    background: rgba(249,115,22,.12);
+    font-size: .75rem;
+    background: var(--accent-glow);
     color: var(--accent);
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-weight: 500;
 }
 
 /* ── Tabs ── */
+.results-col .tabs .tab-nav {
+    border-bottom: 1px solid var(--border) !important;
+    gap: 0 !important;
+}
 .results-col .tabs .tab-nav button {
-    font-size: .82rem !important;
+    font-size: .8rem !important;
     font-weight: 600;
-    border-radius: 8px 8px 0 0 !important;
+    padding: 10px 18px !important;
+    border-radius: var(--radius-xs) var(--radius-xs) 0 0 !important;
+    color: var(--text-3) !important;
+    border: none !important;
+    background: transparent !important;
+    transition: color var(--transition), background var(--transition);
+    position: relative;
+}
+.results-col .tabs .tab-nav button:hover {
+    color: var(--text-2) !important;
+    background: rgba(255,255,255,.03) !important;
 }
 .results-col .tabs .tab-nav button.selected {
     color: var(--accent) !important;
-    border-bottom-color: var(--accent) !important;
+    background: rgba(249,115,22,.05) !important;
+}
+.results-col .tabs .tab-nav button.selected::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 12px; right: 12px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
 }
 
 /* ── Result images ── */
 #overlay-img img, #heatmap-img img {
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     object-fit: contain;
 }
 
-/* ── Examples table ── */
+/* ── Examples ── */
+.examples-row {
+    margin-top: 8px;
+}
+.examples-row .gr-examples {
+    background: transparent !important;
+    border: none !important;
+}
 .examples-row .gr-examples .gr-sample-btn {
-    border-radius: 8px !important;
-    font-size: .82rem;
+    border-radius: var(--radius-xs) !important;
+    font-size: .8rem;
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    transition: all var(--transition);
+}
+.examples-row .gr-examples .gr-sample-btn:hover {
+    border-color: rgba(249,115,22,.3) !important;
+    background: rgba(249,115,22,.04) !important;
 }
 
 /* ── Accordion ── */
 .about-section { margin-top: 12px; }
-.about-section .label-wrap { font-size: .88rem; }
-.about-section table { font-size: .82rem; }
-.about-section table td, .about-section table th { padding: 6px 10px; }
+.about-section .label-wrap {
+    font-size: .84rem;
+    color: var(--text-3);
+    border-radius: var(--radius-sm);
+}
+.about-section table {
+    font-size: .8rem;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.about-section table th {
+    padding: 8px 12px;
+    color: var(--text-3);
+    font-weight: 600;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-bottom: 1px solid var(--border);
+}
+.about-section table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(255,255,255,.03);
+}
+
+/* ── Block labels (Gradio internal) ── */
+.gr-block-label, .gr-input-label, label.svelte-1b6s6s {
+    font-size: .75rem !important;
+    font-weight: 600 !important;
+    color: var(--text-3) !important;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
 
 /* ── Responsive ── */
 @media (max-width: 720px) {
-    .app-header h1 { font-size: 1.35rem; }
+    .app-header h1 { font-size: 1.3rem; }
+    .app-header { padding: 24px 12px 14px; }
     #img-upload { min-height: 200px; }
+    .pill { font-size: .62rem; padding: 3px 8px; }
 }
 """
 
@@ -369,13 +488,13 @@ with gr.Blocks(
     # ── Header ──
     gr.HTML("""
     <div class="app-header">
-        <h1>🔥 CV Transfer Learning + Grad-CAM</h1>
-        <p>Image classification with visual explanations</p>
-        <div class="badge-row">
-            <span class="badge pytorch">PyTorch</span>
-            <span class="badge tf">TensorFlow</span>
-            <span class="badge imagenet">ImageNet 1K</span>
-            <span class="badge gradio">Grad-CAM</span>
+        <h1><span class="fire">🔥</span> CV Transfer Learning + Grad-CAM</h1>
+        <p class="subtitle">Image classification with visual explanations</p>
+        <div class="pill-row">
+            <span class="pill pt">PyTorch</span>
+            <span class="pill tf">TensorFlow</span>
+            <span class="pill in">ImageNet 1K</span>
+            <span class="pill gc">Grad-CAM</span>
         </div>
     </div>
     """)
