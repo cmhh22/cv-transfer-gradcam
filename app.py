@@ -176,6 +176,9 @@ def _build_label_html(results):
 # ── CSS ────────────────────────────────────────────────────────────────
 
 CSS = """
+/* ── Load font explicitly (HF Spaces may block Gradio's auto-inject) ── */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
 /* ── Root variables ── */
 :root {
     --accent: #f97316;
