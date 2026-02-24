@@ -176,297 +176,204 @@ def _build_label_html(results):
 # ── CSS ────────────────────────────────────────────────────────────────
 
 CSS = """
-/* ══════════════════════════════════════════════════════════════════
-   Design System — Dark + Orange Accent
-   Clean, modern, professional.  No gimmicks.
-   ══════════════════════════════════════════════════════════════════ */
-
+/* ── Root variables ── */
 :root {
-    --accent:       #f97316;
+    --accent: #f97316;
     --accent-hover: #ea580c;
-    --accent-glow:  rgba(249,115,22,.12);
-    --bg:           #0a0a0a;
-    --surface:      #141414;
-    --surface-2:    #1c1c1c;
-    --surface-3:    #262626;
-    --border:       rgba(255,255,255,.06);
-    --border-hover: rgba(255,255,255,.12);
-    --text:         #e5e5e5;
-    --text-2:       #a3a3a3;
-    --text-3:       #737373;
-    --radius:       16px;
-    --radius-sm:    10px;
-    --radius-xs:    8px;
-    --transition:   .2s cubic-bezier(.4,0,.2,1);
+    --accent-soft: rgba(249,115,22,.08);
+    --surface: #0f0f0f;
+    --surface-2: #1a1a1a;
+    --surface-3: #242424;
+    --border: #2e2e2e;
+    --text: #f1f1f1;
+    --text-muted: #a1a1a1;
+    --radius: 14px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.4);
 }
 
-/* ── Reset & base ── */
-*, *::before, *::after { box-sizing: border-box; }
+/* ── Hide Gradio footer & scrollbar flicker ── */
 footer { display: none !important; }
-body, .dark, .main, .app, .gradio-container {
-    background: var(--bg) !important;
-    color: var(--text);
-}
 .gradio-container {
-    max-width: 1120px !important;
+    max-width: 1100px !important;
     margin: auto;
-    padding: 0 16px !important;
+    background: var(--surface) !important;
+}
+.dark, body, .main, .app {
+    background: var(--surface) !important;
 }
 
 /* ── Header ── */
 .app-header {
     text-align: center;
-    padding: 36px 16px 20px;
+    padding: 28px 16px 12px;
 }
 .app-header h1 {
-    font-size: 1.65rem;
-    font-weight: 800;
-    color: #fff;
-    margin: 0 0 2px;
-    letter-spacing: -.03em;
-    line-height: 1.2;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 0 4px;
+    letter-spacing: -.02em;
 }
-.app-header h1 .fire { filter: saturate(1.2); }
-.app-header .subtitle {
-    font-size: .88rem;
-    color: var(--text-3);
+.app-header p {
+    font-size: .92rem;
+    color: var(--text-muted);
     margin: 0;
-    font-weight: 400;
 }
-.app-header .pill-row {
+.app-header .badge-row {
     display: flex;
     justify-content: center;
     gap: 6px;
-    margin-top: 14px;
+    margin-top: 10px;
     flex-wrap: wrap;
 }
-.pill {
-    font-size: .68rem;
+.app-header .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: .72rem;
     font-weight: 600;
-    padding: 4px 12px;
-    border-radius: 100px;
-    letter-spacing: .02em;
-    border: 1px solid transparent;
-    backdrop-filter: blur(4px);
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: .01em;
 }
-.pill.pt  { background: rgba(238,76,44,.08); color: #ff7b6b; border-color: rgba(238,76,44,.18); }
-.pill.tf  { background: rgba(255,111,0,.08); color: #ffba70; border-color: rgba(255,111,0,.18); }
-.pill.gc  { background: rgba(249,115,22,.08); color: #f97316; border-color: rgba(249,115,22,.18); }
-.pill.in  { background: rgba(251,191,36,.06); color: #fbbf24; border-color: rgba(251,191,36,.15); }
+.badge.pytorch  { background: #ee4c2c22; color: #ff6b5b; border: 1px solid #ee4c2c44; }
+.badge.tf       { background: #ff6f0022; color: #ffaa60; border: 1px solid #ff6f0044; }
+.badge.gradio   { background: #f9731622; color: #f97316; border: 1px solid #f9731644; }
+.badge.imagenet { background: #f9731622; color: #fbbf24; border: 1px solid #fbbf2444; }
 
-/* ── Glass card wrapper ── */
-.panel-card {
-    background: var(--surface);
+/* ── Cards ── */
+.card {
+    background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 0;
-    overflow: hidden;
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
 }
 
-/* ── Predict button ── */
+/* ── Predict button — FIXED SIZE ── */
 #predict-btn {
     width: 100% !important;
-    height: 46px !important;
-    min-height: 46px !important;
-    max-height: 46px !important;
-    font-size: .9rem !important;
-    font-weight: 700 !important;
-    letter-spacing: .02em;
-    border-radius: var(--radius-sm) !important;
+    min-height: 48px !important;
+    max-height: 48px !important;
+    height: 48px !important;
+    font-size: .95rem !important;
+    font-weight: 600 !important;
+    letter-spacing: .01em;
+    border-radius: 10px !important;
     background: var(--accent) !important;
     color: #fff !important;
     border: none !important;
     cursor: pointer;
-    transition: all var(--transition);
-    box-shadow: 0 0 0 0 transparent, 0 2px 8px rgba(249,115,22,.25);
+    transition: background .2s, box-shadow .2s, transform .1s;
+    box-shadow: 0 2px 8px rgba(249,115,22,.3);
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     overflow: hidden !important;
-    padding: 0 20px !important;
     flex-shrink: 0 !important;
-    position: relative;
-}
-#predict-btn::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(255,255,255,.12) 0%, transparent 60%);
-    pointer-events: none;
-    border-radius: inherit;
+    line-height: 1 !important;
+    padding: 0 16px !important;
+    box-sizing: border-box !important;
 }
 #predict-btn:hover {
     background: var(--accent-hover) !important;
-    box-shadow: 0 0 20px rgba(249,115,22,.2), 0 4px 12px rgba(249,115,22,.3);
+    box-shadow: 0 4px 14px rgba(249,115,22,.45);
     transform: translateY(-1px);
 }
 #predict-btn:active {
-    transform: translateY(0) scale(.99);
-    box-shadow: 0 0 0 0 transparent, 0 1px 4px rgba(249,115,22,.2);
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(249,115,22,.2);
 }
 
-/* ── Kill extra spinners ── */
-#predict-btn .wrap, #predict-btn .loading,
-.results-col .progress-bar, .results-col .wrap.default,
+/* ── Kill extra spinners — show only ONE loader ── */
+#predict-btn .wrap,
+#predict-btn .loading,
+.results-col .progress-bar,
+.results-col .wrap.default,
 .results-col > div > .wrap.default,
-#overlay-img .wrap, #heatmap-img .wrap, #info-box .wrap {
+#overlay-img .wrap,
+#heatmap-img .wrap,
+#info-box .wrap {
     display: none !important;
 }
+/* Only the results area keeps its subtle loader */
 
-/* ── Predictions panel ── */
+/* ── Label (predictions) ── */
 #label-out {
     position: relative;
-    min-height: 80px;
-    background: var(--surface);
-    border-radius: var(--radius);
-    padding: 14px 18px;
-    border: 1px solid var(--border);
-}
-
-/* ── Dropdowns ── */
-.settings-row select, .settings-row .gr-dropdown,
-.settings-row input {
-    border-radius: var(--radius-xs) !important;
-    background: var(--surface-2) !important;
-    border-color: var(--border) !important;
-    transition: border-color var(--transition);
-}
-.settings-row select:focus, .settings-row .gr-dropdown:focus-within {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 0 3px var(--accent-glow);
-}
-
-/* ── Image upload ── */
-#img-upload {
-    border: 2px dashed rgba(255,255,255,.08) !important;
-    border-radius: var(--radius) !important;
-    transition: border-color var(--transition), background var(--transition);
-    min-height: 270px;
-    background: var(--surface) !important;
-}
-#img-upload:hover {
-    border-color: rgba(249,115,22,.35) !important;
-    background: rgba(249,115,22,.02) !important;
-}
-
-/* ── Info box ── */
-#info-box {
-    min-height: 44px;
-    padding: 12px 16px;
+    min-height: 100px;
     background: var(--surface-2);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
+    padding: 12px 16px;
     border: 1px solid var(--border);
 }
-#info-box p { margin: 0; font-size: .86rem; color: var(--text); line-height: 1.5; }
-#info-box strong { color: #fff; }
+
+/* ── Dropdown selects ── */
+.settings-row .gr-dropdown {
+    border-radius: 10px !important;
+}
+
+/* ── Image upload area ── */
+#img-upload {
+    border: 2px dashed var(--border) !important;
+    border-radius: var(--radius) !important;
+    transition: border-color .2s;
+    min-height: 260px;
+}
+#img-upload:hover { border-color: var(--accent) !important; }
+
+/* ── Result info ── */
+#info-box {
+    min-height: 48px;
+    padding: 10px 14px;
+    background: var(--surface-3);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+#info-box p { margin: 0; font-size: .88rem; color: var(--text); }
+#info-box strong { color: var(--accent); }
 #info-box code {
-    font-size: .75rem;
-    background: var(--accent-glow);
+    font-size: .78rem;
+    background: rgba(249,115,22,.12);
     color: var(--accent);
-    padding: 2px 8px;
-    border-radius: 5px;
-    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 4px;
 }
 
 /* ── Tabs ── */
-.results-col .tabs .tab-nav {
-    border-bottom: 1px solid var(--border) !important;
-    gap: 0 !important;
-}
 .results-col .tabs .tab-nav button {
-    font-size: .8rem !important;
+    font-size: .82rem !important;
     font-weight: 600;
-    padding: 10px 18px !important;
-    border-radius: var(--radius-xs) var(--radius-xs) 0 0 !important;
-    color: var(--text-3) !important;
-    border: none !important;
-    background: transparent !important;
-    transition: color var(--transition), background var(--transition);
-    position: relative;
-}
-.results-col .tabs .tab-nav button:hover {
-    color: var(--text-2) !important;
-    background: rgba(255,255,255,.03) !important;
+    border-radius: 8px 8px 0 0 !important;
 }
 .results-col .tabs .tab-nav button.selected {
     color: var(--accent) !important;
-    background: rgba(249,115,22,.05) !important;
-}
-.results-col .tabs .tab-nav button.selected::after {
-    content: '';
-    position: absolute;
-    bottom: -1px; left: 12px; right: 12px;
-    height: 2px;
-    background: var(--accent);
-    border-radius: 2px 2px 0 0;
+    border-bottom-color: var(--accent) !important;
 }
 
 /* ── Result images ── */
 #overlay-img img, #heatmap-img img {
-    border-radius: var(--radius-sm);
+    border-radius: 10px;
     object-fit: contain;
 }
 
-/* ── Examples ── */
-.examples-row {
-    margin-top: 8px;
-}
-.examples-row .gr-examples {
-    background: transparent !important;
-    border: none !important;
-}
+/* ── Examples table ── */
 .examples-row .gr-examples .gr-sample-btn {
-    border-radius: var(--radius-xs) !important;
-    font-size: .8rem;
-    background: var(--surface-2) !important;
-    border: 1px solid var(--border) !important;
-    transition: all var(--transition);
-}
-.examples-row .gr-examples .gr-sample-btn:hover {
-    border-color: rgba(249,115,22,.3) !important;
-    background: rgba(249,115,22,.04) !important;
+    border-radius: 8px !important;
+    font-size: .82rem;
 }
 
 /* ── Accordion ── */
 .about-section { margin-top: 12px; }
-.about-section .label-wrap {
-    font-size: .84rem;
-    color: var(--text-3);
-    border-radius: var(--radius-sm);
-}
-.about-section table {
-    font-size: .8rem;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-.about-section table th {
-    padding: 8px 12px;
-    color: var(--text-3);
-    font-weight: 600;
-    font-size: .72rem;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    border-bottom: 1px solid var(--border);
-}
-.about-section table td {
-    padding: 7px 12px;
-    border-bottom: 1px solid rgba(255,255,255,.03);
-}
-
-/* ── Block labels (Gradio internal) ── */
-.gr-block-label, .gr-input-label, label.svelte-1b6s6s {
-    font-size: .75rem !important;
-    font-weight: 600 !important;
-    color: var(--text-3) !important;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-}
+.about-section .label-wrap { font-size: .88rem; }
+.about-section table { font-size: .82rem; }
+.about-section table td, .about-section table th { padding: 6px 10px; }
 
 /* ── Responsive ── */
 @media (max-width: 720px) {
-    .app-header h1 { font-size: 1.3rem; }
-    .app-header { padding: 24px 12px 14px; }
+    .app-header h1 { font-size: 1.35rem; }
     #img-upload { min-height: 200px; }
-    .pill { font-size: .62rem; padding: 3px 8px; }
 }
 """
 
@@ -480,7 +387,7 @@ with gr.Blocks(
         primary_hue=gr.themes.colors.orange,
         secondary_hue=gr.themes.colors.orange,
         neutral_hue=gr.themes.colors.gray,
-        font=gr.themes.GoogleFont("Inter"),
+        font=gr.themes.GoogleFont("Space Grotesk"),
         radius_size=gr.themes.sizes.radius_lg,
     ),
 ) as demo:
@@ -488,13 +395,13 @@ with gr.Blocks(
     # ── Header ──
     gr.HTML("""
     <div class="app-header">
-        <h1><span class="fire">🔥</span> CV Transfer Learning + Grad-CAM</h1>
-        <p class="subtitle">Image classification with visual explanations</p>
-        <div class="pill-row">
-            <span class="pill pt">PyTorch</span>
-            <span class="pill tf">TensorFlow</span>
-            <span class="pill in">ImageNet 1K</span>
-            <span class="pill gc">Grad-CAM</span>
+        <h1>🔥 CV Transfer Learning + Grad-CAM</h1>
+        <p>Image classification with visual explanations</p>
+        <div class="badge-row">
+            <span class="badge pytorch">PyTorch</span>
+            <span class="badge tf">TensorFlow</span>
+            <span class="badge imagenet">ImageNet 1K</span>
+            <span class="badge gradio">Grad-CAM</span>
         </div>
     </div>
     """)
