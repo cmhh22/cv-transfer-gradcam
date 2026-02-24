@@ -6,6 +6,33 @@ Supports PyTorch & TensorFlow backends.
 import os
 import time
 import numpy as np
+
+# ── Patch gradio_client bug BEFORE importing gradio ─────────────────────
+# gradio_client's json_schema_to_python_type crashes when a JSON-schema
+# value is a plain bool (e.g. additionalProperties: true).  We wrap the
+# two affected helpers so they return a safe fallback instead of crashing.
+import gradio_client.utils as _gc_utils  # noqa: E402
+
+_orig_get_type = _gc_utils.get_type
+_orig_json_to_py = _gc_utils._json_schema_to_python_type
+
+
+def _safe_get_type(schema):
+    if isinstance(schema, bool):
+        return "bool"
+    return _orig_get_type(schema)
+
+
+def _safe_json_to_py(schema, defs=None):
+    if isinstance(schema, bool):
+        return "Any"
+    return _orig_json_to_py(schema, defs)
+
+
+_gc_utils.get_type = _safe_get_type
+_gc_utils._json_schema_to_python_type = _safe_json_to_py
+# ── End patch ───────────────────────────────────────────────────────────
+
 import gradio as gr
 from PIL import Image
 
