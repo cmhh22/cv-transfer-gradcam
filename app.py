@@ -45,7 +45,7 @@ def _get_model(framework: str, model_name: str):
 def predict_with_gradcam(image, framework, model_name):
     """Classify image → top-5 predictions + Grad-CAM overlays."""
     if image is None:
-        return {}, None, None, "Upload an image and click **Classify**."
+        return "", None, None, "Upload an image and click **Classify**."
 
     try:
         if not isinstance(image, Image.Image):
@@ -53,10 +53,10 @@ def predict_with_gradcam(image, framework, model_name):
         image = image.convert("RGB")
 
         if framework == "PyTorch" and PyTorchTransferModel is None:
-            return ({}, None, None,
+            return ("", None, None,
                     "❌ PyTorch not installed (`pip install torch torchvision`)")
         if framework == "TensorFlow" and TensorFlowTransferModel is None:
-            return ({}, None, None,
+            return ("", None, None,
                     "❌ TensorFlow not installed (`pip install tensorflow`)")
 
         t0 = time.time()
@@ -64,7 +64,8 @@ def predict_with_gradcam(image, framework, model_name):
         results = model.predict(image, top_k=5)
         elapsed = time.time() - t0
 
-        label_dict = {name: conf for name, conf in results}
+        # Build HTML bar chart for predictions
+        label_html = _build_label_html(results)
 
         # Grad-CAM
         fw = "pytorch" if framework == "PyTorch" else "tensorflow"
@@ -82,10 +83,41 @@ def predict_with_gradcam(image, framework, model_name):
                 f"`{framework}` · `{model_name}` · "
                 f"{elapsed:.2f}s · {image.size[0]}×{image.size[1]}px")
 
-        return label_dict, overlay, heatmap, info
+        return label_html, overlay, heatmap, info
 
     except Exception as e:
-        return {}, None, None, f"❌ Error: {e}"
+        return "", None, None, f"❌ Error: {e}"
+
+
+def _build_label_html(results):
+    """Build an HTML bar chart from prediction results."""
+    if not results:
+        return ""
+    max_conf = max(conf for _, conf in results)
+    rows = []
+    for name, conf in results:
+        pct = conf * 100
+        bar_w = (conf / max_conf * 100) if max_conf > 0 else 0
+        rows.append(
+            f'<div style="display:flex;align-items:center;gap:10px;margin:4px 0;">'
+            f'<span style="min-width:160px;font-size:.85rem;color:#f1f1f1;'
+            f'text-align:right;white-space:nowrap;overflow:hidden;'
+            f'text-overflow:ellipsis;">{name}</span>'
+            f'<div style="flex:1;background:#242424;border-radius:6px;'
+            f'height:22px;overflow:hidden;">'
+            f'<div style="width:{bar_w:.1f}%;height:100%;'
+            f'background:linear-gradient(90deg,#f97316,#fb923c);'
+            f'border-radius:6px;transition:width .4s ease;"></div></div>'
+            f'<span style="min-width:52px;font-size:.82rem;color:#a1a1a1;'
+            f'text-align:right;">{pct:.1f}%</span>'
+            f'</div>'
+        )
+    return (
+        f'<div style="padding:8px 0;">'
+        f'<div style="font-size:.78rem;color:#a1a1a1;margin-bottom:6px;'
+        f'font-weight:600;">Top-5 Predictions</div>'
+        f'{"".join(rows)}</div>'
+    )
 
 
 # ── CSS ────────────────────────────────────────────────────────────────
@@ -212,24 +244,16 @@ footer { display: none !important; }
 #info-box .wrap {
     display: none !important;
 }
-/* Only the label component keeps its subtle loader */
-#label-out .wrap.default {
-    display: flex !important;
-    position: absolute;
-    inset: 0;
-    background: rgba(15,15,15,.75);
-    backdrop-filter: blur(2px);
-    z-index: 5;
-    border-radius: var(--radius);
-}
+/* Only the results area keeps its subtle loader */
 
 /* ── Label (predictions) ── */
 #label-out {
     position: relative;
-    min-height: 140px;
-}
-#label-out .label-item {
-    border-radius: 8px !important;
+    min-height: 100px;
+    background: var(--surface-2);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    border: 1px solid var(--border);
 }
 
 /* ── Dropdown selects ── */
@@ -371,11 +395,9 @@ with gr.Blocks(
                 elem_id="info-box",
             )
 
-            label_out = gr.Label(
-                num_top_classes=5,
-                label="Top-5 Predictions",
+            label_out = gr.HTML(
+                value="",
                 elem_id="label-out",
-                show_label=True,
             )
 
             with gr.Tabs():
