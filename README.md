@@ -1,16 +1,3 @@
----
-title: CV Transfer Learning + Grad-CAM
-emoji: 🔥
-colorFrom: red
-colorTo: yellow
-sdk: gradio
-sdk_version: "5.8.0"
-app_file: app.py
-pinned: false
-license: mit
-python_version: "3.11"
----
-
 # 🔥 CV Transfer Learning + Grad-CAM
 
 Transfer Learning with Grad-CAM visualization in both **PyTorch** and **TensorFlow**.
